@@ -53,6 +53,13 @@
     .dz-file { color: #9fe1ff; font-size: 13px; }
     .native-file { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 
+    /* Loading overlay */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0, 4, 12, 0.55); backdrop-filter: blur(5px); display: none; place-items: center; z-index: 20; }
+    .loading-overlay.active { display: grid; }
+    .spinner { width: 64px; height: 64px; border-radius: 50%; border: 3px solid rgba(0,174,255,.25); border-top-color: #00bfff; animation: spin 0.9s linear infinite; box-shadow: 0 0 20px rgba(0,174,255,.25); }
+    .loading-text { margin-top: 12px; color: #bfe8ff; font-weight: 600; text-shadow: 0 0 10px rgba(0,174,255,.25); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* Mobile adjustments */
     @media (max-width: 768px) {
       body { padding: 84px 12px 24px; overflow-x: hidden; }
@@ -74,6 +81,13 @@
   </style>
 </head>
 <body>
+  <!-- Loading overlay -->
+  <div id="loading" class="loading-overlay" aria-live="polite" aria-hidden="true">
+    <div style="display:grid; place-items:center; gap:10px;">
+      <div class="spinner" role="progressbar" aria-label="Loading"></div>
+      <div class="loading-text">Processing…</div>
+    </div>
+  </div>
   <!-- Top glass buttons -->
   <nav class="glass-nav" aria-label="Primary actions">
     <button class="gbtn primary" type="button">Encode (Insert) Data</button>
@@ -200,10 +214,14 @@
       const res = await fetch(url, { method: 'POST', body: fd });
       return res;
     }
+    const loadingEl = document.getElementById('loading');
+    const showLoading = (msg) => { if (loadingEl) { loadingEl.classList.add('active'); loadingEl.setAttribute('aria-hidden','false'); if (msg) loadingEl.querySelector('.loading-text').textContent = msg; document.body.style.cursor='progress'; } };
+    const hideLoading = () => { if (loadingEl) { loadingEl.classList.remove('active'); loadingEl.setAttribute('aria-hidden','true'); document.body.style.cursor=''; } };
     // Encode submit
     document.getElementById('encodeForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
+        showLoading('Encoding…');
         const res = await postForm('/encode', e.target);
         const ct = res.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
@@ -214,11 +232,13 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = 'stego.png'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       } catch (err) { alert('Error: ' + err.message); }
+      finally { hideLoading(); }
     });
     // Decode submit
     document.getElementById('decodeForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
+        showLoading('Decoding…');
         const res = await postForm('/decode', e.target);
         const ct = res.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
@@ -231,6 +251,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       } catch (err) { alert('Error: ' + err.message); }
+      finally { hideLoading(); }
     });
   </script>
 </body>
